@@ -4,7 +4,7 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-# --- ЗАГЛУШКА ДЛЯ RENDER ---
+# 1. Заглушка для Render (чтобы не было ошибок порта)
 class DummyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -17,30 +17,29 @@ def keep_alive():
     server.serve_forever()
 
 threading.Thread(target=keep_alive, daemon=True).start()
-# ---------------------------
 
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8643394823:AAEu6dFcZUF1S7EgfXyATp1j0G76fPAVWJM")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyA8_13BbZW8cROuFjbpaN25KEKIWvxvIEY")
+# 2. Настройка ключей (берем из настроек Render)
+TOKEN = os.environ.get("TELEGRAM_TOKEN")
+G_KEY = os.environ.get("GEMINI_API_KEY")
 
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
-gemini_client = Client(api_key=GEMINI_API_KEY)
+bot = telebot.TeleBot(TOKEN)
+client = Client(api_key=G_KEY)
 
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-    bot.reply_to(message, "Привет, Добрыня! 🚀\nЯ облачный Gemini-бот. Спрашивай что угодно!")
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.reply_to(message, "Привет! Я теперь работаю в облаке. Спрашивай!")
 
-@bot.message_handler(func=lambda message: True)
-def handle_message(message):
+@bot.message_handler(func=lambda m: True)
+def chat(message):
     try:
-        response = gemini_client.models.generate_content(
+        response = client.models.generate_content(
             model="gemini-2.0-flash", 
             contents=message.text
         )
         bot.reply_to(message, response.text)
     except Exception as e:
-        bot.reply_to(message, "Произошла ошибка связи с ИИ. Попробуй позже.")
-        print(f"Ошибка API: {e}")
+        print(f"Ошибка: {e}")
+        bot.reply_to(message, "Произошла ошибка связи с ИИ.")
 
 if __name__ == "__main__":
-    print("🤖 Бот запущен в штатном режиме!")
     bot.infinity_polling()
